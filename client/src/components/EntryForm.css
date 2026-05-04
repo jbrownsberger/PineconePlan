@@ -1,0 +1,20 @@
+.entry-form { display: flex; flex-direction: column; gap: 14px; }
+.entry-form h2 { font-size: 1.2rem; color: #1a1a2e; margin-bottom: 4px; }
+.entry-form label { display: flex; flex-direction: column; gap: 5px; font-size: 0.88rem; font-weight: 600; color: #555; }
+.entry-form input, .entry-form textarea, .entry-form select {
+  border: 1.5px solid #ddd; border-radius: 8px; padding: 9px 12px; font-size: 0.95rem; outline: none;
+  transition: border-color 0.2s;
+}
+.entry-form input:focus, .entry-form textarea:focus { border-color: #e94560; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.loc-row { display: flex; gap: 8px; }
+.loc-row input { flex: 1; }
+.btn-geo { padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-size: 1rem; }
+.btn-geo:hover { border-color: #e94560; }
+.commitment-row { display: flex; gap: 8px; margin-top: 4px; }
+.commit-btn { flex: 1; padding: 8px 4px; border: 1.5px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.15s; }
+.commit-hint { font-size: 0.8rem; color: #888; font-weight: 400; margin-top: 4px; min-height: 18px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.btn-cancel { padding: 9px 18px; border: 1.5px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
+.btn-cancel:hover { border-color: #aaa; }
+.btn-primary { background: #e94560; color: white; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; font-weight: 600; }

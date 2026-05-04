@@ -1,0 +1,14 @@
+.timeline-wrap { overflow: hidden; }
+.legend { display: flex; gap: 16px; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.timeline-scroll { overflow-x: auto; }
+.timeline-table { border-collapse: collapse; font-size: 0.8rem; min-width: 100%; }
+.timeline-table th, .timeline-table td { border: 1px solid #eee; padding: 3px; text-align: center; }
+.name-col { min-width: 100px; text-align: left !important; padding-left: 8px !important; white-space: nowrap; }
+.day-col { min-width: 22px; max-width: 28px; font-size: 0.7rem; color: #999; }
+.weekend { background: #f9f9f9; }
+.day-cell { padding: 0 !important; height: 28px; }
+.day-fill { width: 100%; height: 100%; opacity: 0.75; }
+.entry-chip { display: flex; align-items: center; gap: 6px; background: #f7f8fa; border-radius: 6px; padding: 4px 8px; margin: 3px 0; font-size: 0.8rem; }
+.entry-chip button { background: none; border: none; cursor: pointer; padding: 0 2px; }
