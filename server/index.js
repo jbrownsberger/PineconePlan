@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -8,9 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Supabase requires SSL with rejectUnauthorized: false
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false },
 });
 
 async function initDB() {
