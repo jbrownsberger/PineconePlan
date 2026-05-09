@@ -1,6 +1,52 @@
 .app { display: flex; flex-direction: column; min-height: 100vh; }
 .header { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
 .header h1 { font-size: 1.4rem; font-weight: 700; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+/* Backend status pill */
+.backend-status {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 4px 12px; border-radius: 999px;
+  transition: all 0.4s ease;
+}
+.backend-status.live   { background: rgba(46,196,182,0.15); color: #2ec4b6; }
+.backend-status.waking { background: rgba(244,162,97,0.15);  color: #f4a261; }
+.backend-status.error  { background: rgba(233,69,96,0.15);   color: #e94560; }
+
+/* Pulsing dot for live */
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+.backend-status.error .status-dot { animation: none; }
+
+/* Spinning arc for waking */
+.status-spinner {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid rgba(244,162,97,0.3);
+  border-top-color: #f4a261;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Wake overlay in main content area */
+.wake-overlay {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; padding: 80px 24px; color: #888; text-align: center;
+}
+.wake-overlay.error { color: #e94560; }
+.wake-overlay p { font-size: 0.95rem; max-width: 360px; line-height: 1.6; }
+.wake-spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid #eee; border-top-color: #f4a261;
+  animation: spin 0.9s linear infinite;
+}
+
 .btn-primary { background: #e94560; color: white; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; font-weight: 600; }
 .btn-primary:hover { background: #c73652; }
 .tabs { display: flex; background: white; border-bottom: 2px solid #eee; padding: 0 24px; }

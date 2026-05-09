@@ -7,7 +7,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Supabase requires SSL with rejectUnauthorized: false
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -47,6 +46,11 @@ async function initDB() {
   console.log('DB initialized');
 }
 initDB();
+
+// Health check — used by frontend wake-up ping
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ts: Date.now() });
+});
 
 app.get('/api/entries', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM entries ORDER BY start_date');
