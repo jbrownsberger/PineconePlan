@@ -11,36 +11,47 @@ A shared web app for coordinating family summer plans. Each family member can en
 - **Proposed gatherings** — Propose a meetup; everyone RSVPs In / Maybe / Out
 - **Commitment levels** — 🔒 Fixed (booked), 📅 Likely (strong plan), 🔄 Flexible (can change)
 - **No login required** — Share one URL; each person picks their name when submitting
+- **Instant page load** — Frontend served from Render CDN; backend wakes in background
+
+## Architecture
+
+```
+Render Static Site  (pineconeplan)          ← CDN, never spins down
+      ↓ fetch()
+Render Web Service  (pineconeplanbackend)   ← Express API, may spin down on free tier
+      ↓ pg
+Supabase PostgreSQL                         ← Free tier, never spins down
+```
+
+The React frontend pings `/api/health` on load and shows a “Waking up…” indicator
+until the backend responds. Data loads automatically once the backend is live.
 
 ## Stack
 
-- **Frontend**: React + Leaflet (map) + date-fns
-- **Backend**: Node.js / Express
-- **Database**: Supabase (PostgreSQL, free tier, no spin-down)
-- **Hosting**: Render (web service)
+- **Frontend**: React + Leaflet (map) + date-fns, hosted as Render Static Site
+- **Backend**: Node.js / Express, hosted as Render Web Service
+- **Database**: Supabase (PostgreSQL, free tier)
 
 ## Deploy
 
 ### 1. Create a Supabase database
 
 1. Go to [supabase.com](https://supabase.com) → New project
-2. Once created, go to **Settings → Database → Connection string → URI**
-3. Copy the connection string (it looks like `postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres`)
+2. Go to **Settings → Database → Connection string → URI**
+3. Copy the connection string (`postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres`)
 
-### 2. Deploy to Render
+### 2. Deploy via Render Blueprint
 
 1. Go to [render.com](https://render.com) → **New → Blueprint**
-2. Connect this GitHub repo — Render reads `render.yaml`
-3. After the service is created, go to its **Environment** tab in Render
-4. Add an environment variable:
-   - Key: `DATABASE_URL`
-   - Value: *(paste your Supabase connection string)*
-5. Trigger a manual deploy (or push any commit)
-6. Share the `.onrender.com` URL with your family
+2. Connect this GitHub repo — Render reads `render.yaml` and creates both services
+3. In the **pineconeplanbackend** service → **Environment** tab, add:
+   - `DATABASE_URL` = *(your Supabase connection string)*
+4. Trigger a manual redeploy of both services
+5. Share the `pineconeplan.onrender.com` URL with your family
 
-> **Note:** The Render web service on the free tier will still spin down after inactivity.
-> Upgrade to Render's $7/month Starter plan to keep it always-on, or use a free
-> uptime monitor like [UptimeRobot](https://uptimerobot.com) to ping it every 5 minutes.
+> **Tip:** The API service on the free tier still spins down after 15 min of inactivity,
+> but the frontend loads instantly from the CDN regardless. The in-app wake-up indicator
+> handles the user experience gracefully.
 
 ## Local Development
 
@@ -48,10 +59,10 @@ A shared web app for coordinating family summer plans. Each family member can en
 # Install dependencies
 npm run install-all
 
-# Start backend (port 4000)
+# Terminal 1 — backend on port 4000
 cd server && npm run dev
 
-# Start frontend (port 3000, proxies API to 4000)
+# Terminal 2 — frontend on port 3000 (proxies /api to 4000 via package.json proxy)
 cd client && npm start
 ```
 

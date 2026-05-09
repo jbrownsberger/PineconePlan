@@ -1,11 +1,28 @@
 services:
+  # ── API (Express + Postgres) ─────────────────────────────────────────────
   - type: web
-    name: family-planner
+    name: pineconeplanbackend
     env: node
-    buildCommand: npm run build && npm install --prefix server
-    startCommand: cd server && node index.js
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
     envVars:
       - key: DATABASE_URL
-        sync: false   # Set manually in Render dashboard from Supabase
+        sync: false   # Paste your Supabase connection string in the Render dashboard
       - key: NODE_ENV
         value: production
+
+  # ── Frontend (React static site — served from CDN, never spins down) ─────
+  - type: static
+    name: pineconeplan
+    rootDir: client
+    buildCommand: npm install && REACT_APP_API_URL=https://pineconeplanbackend.onrender.com npm run build
+    staticPublishPath: build
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

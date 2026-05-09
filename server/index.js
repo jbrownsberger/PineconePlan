@@ -1,10 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const path = require('path');
 
 const app = express();
-app.use(cors());
+
+// Allow requests from any Render static site or localhost
+app.use(cors({
+  origin: [
+    /\.onrender\.com$/,
+    'http://localhost:3000',
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 
 const pool = new Pool({
@@ -165,10 +172,7 @@ app.get('/api/gaps', async (req, res) => {
   res.json(gaps);
 });
 
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../client/build/index.html')));
-}
+// No static file serving — frontend is a separate Render static site
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
