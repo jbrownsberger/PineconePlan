@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Timeline from './components/Timeline';
 import EntryForm from './components/EntryForm';
 import OverlapPanel from './components/OverlapPanel';
@@ -51,83 +51,99 @@ const TABS = [
 ];
 
 export default function App() {
-  const [entries, setEntries]       = useState([]);
-  const [overlaps, setOverlaps]     = useState([]);
+  const [entries,    setEntries]    = useState([]);
+  const [overlaps,   setOverlaps]   = useState([]);
   const [gatherings, setGatherings] = useState([]);
-  const [gaps, setGaps]             = useState([]);
-  const [tab, setTab]               = useState('timeline');
-  const [showForm, setShowForm]     = useState(false);
-  const [editing, setEditing]       = useState(null);
+  const [tab,        setTab]        = useState('timeline');
+  const [showForm,   setShowForm]   = useState(false);
+  const [editing,    setEditing]    = useState(null);
   const [backendStatus, setBackendStatus] = useState('waking');
+
+  // Stable refs so interval callbacks never hold stale closures
+  const statusRef    = useRef(backendStatus);
+  const cancelledRef = useRef(false);
+  useEffect(() => { statusRef.current = backendStatus; }, [backendStatus]);
 
   const YEAR = new Date().getFullYear();
 
+  // ── Keep-alive: runs forever; survives tab-switching ───────────────────
   useEffect(() => {
-    let cancelled = false;
-    let retryTimer, errorTimer;
-    let keepAliveInterval;
+    cancelledRef.current = false;
+    let retryTimer = null;
+    let keepAliveInterval = null;
+    let errorTimer = null;
 
     async function ping() {
+      if (cancelledRef.current) return;
       try {
         const res = await fetch(`${API}/api/health`, { cache: 'no-store' });
-        if (res.ok && !cancelled) {
+        if (res.ok && !cancelledRef.current) {
           setBackendStatus('live');
+          // Start keep-alive pings every 4 min if not already running
           if (!keepAliveInterval) {
             keepAliveInterval = setInterval(() => {
-              if (!cancelled) fetch(`${API}/api/health`, { cache: 'no-store' }).catch(() => {});
+              if (!cancelledRef.current) {
+                fetch(`${API}/api/health`, { cache: 'no-store' }).catch(() => {});
+              }
             }, 4 * 60 * 1000);
           }
           return;
         }
       } catch {}
-      if (!cancelled) retryTimer = setTimeout(ping, 3000);
+      if (!cancelledRef.current) retryTimer = setTimeout(ping, 3000);
     }
 
     ping();
-    errorTimer = setTimeout(() => { if (!cancelled) setBackendStatus('error'); }, 90000);
+    errorTimer = setTimeout(() => {
+      if (!cancelledRef.current && statusRef.current !== 'live') setBackendStatus('error');
+    }, 90000);
 
-    function onVisible() {
-      if (document.visibilityState === 'visible' && !cancelled) {
+    // Re-ping when tab becomes visible (re-check, never tear down interval)
+    function onVisibility() {
+      if (document.visibilityState === 'visible' && !cancelledRef.current) {
         fetch(`${API}/api/health`, { cache: 'no-store' })
-          .then(r => { if (r.ok && !cancelled) setBackendStatus('live'); })
+          .then(r => { if (r.ok && !cancelledRef.current) setBackendStatus('live'); })
           .catch(() => {});
       }
     }
-    document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       clearTimeout(retryTimer);
       clearTimeout(errorTimer);
       clearInterval(keepAliveInterval);
-      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← empty deps: mount/unmount only — never re-runs on tab change
 
+  // ── Data fetch ─────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     try {
-      const [e, o, g, gp] = await Promise.all([
+      const [e, o, g] = await Promise.all([
         fetch(`${API}/api/entries`).then(r => r.json()),
         fetch(`${API}/api/overlaps`).then(r => r.json()),
         fetch(`${API}/api/gatherings`).then(r => r.json()),
-        fetch(`${API}/api/gaps?year=${YEAR}`).then(r => r.json()),
       ]);
-      setEntries(e); setOverlaps(o); setGatherings(g); setGaps(gp);
+      setEntries(e); setOverlaps(o); setGatherings(g);
     } catch {}
-  }, [YEAR]);
+  }, []);
 
-  useEffect(() => {
-    function onVisible() {
-      if (document.visibilityState === 'visible' && backendStatus === 'live') fetchAll();
-    }
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [backendStatus, fetchAll]);
-
+  // Fetch once backend is live; re-fetch when tab becomes visible
   useEffect(() => {
     if (backendStatus === 'live') fetchAll();
   }, [backendStatus, fetchAll]);
 
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === 'visible' && statusRef.current === 'live') fetchAll();
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [fetchAll]);
+
+  // ── Entry CRUD ─────────────────────────────────────────────────────────
   async function saveEntry(data) {
     const { __paintNew, ...clean } = data;
     if (editing && editing.id && !__paintNew) {
@@ -149,9 +165,9 @@ export default function App() {
   }
 
   function openEdit(entry) {
-    if (entry.__paintNew) {
+    if (entry && entry.__paintNew) {
       const { __paintNew, id, ...rest } = entry;
-      setEditing(rest);
+      setEditing({ ...rest, __paintNew: true });
     } else {
       setEditing(entry);
     }
@@ -191,12 +207,6 @@ export default function App() {
         ))}
       </nav>
 
-      {gaps.length > 0 && (
-        <div className="gap-banner">
-          ⚠️ Uncovered summer windows: {gaps.map(g => `${g.from} → ${g.to}`).join(', ')}
-        </div>
-      )}
-
       <main className="main">
         {backendStatus === 'waking' && (
           <div className="wake-overlay">
@@ -213,11 +223,11 @@ export default function App() {
         {backendStatus === 'live' && (
           <>
             {tab === 'timeline' && (
-              <Timeline entries={entries} people={people} year={YEAR}
+              <Timeline entries={entries} people={people}
                 onEdit={openEdit} onDelete={deleteEntry} />
             )}
-            {tab === 'map' && <MapView entries={entries} />}
-            {tab === 'overlaps' && <OverlapPanel overlaps={overlaps} />}
+            {tab === 'map'        && <MapView entries={entries} />}
+            {tab === 'overlaps'   && <OverlapPanel overlaps={overlaps} />}
             {tab === 'gatherings' && (
               <GatheringsPanel gatherings={gatherings} people={people}
                 apiBase={API} onRefresh={fetchAll} />
