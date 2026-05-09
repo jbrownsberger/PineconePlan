@@ -6,7 +6,7 @@ import GatheringsPanel from './components/GatheringsPanel';
 import MapView from './components/MapView';
 import './App.css';
 
-const API = process.env.REACT_APP_API_URL || '';
+const API = process.env.REACT_APP_API_URL || 'https://pineconeplanbackend.onrender.com';
 
 // Status indicator shown in the header
 function BackendStatus({ status }) {
@@ -26,7 +26,6 @@ function BackendStatus({ status }) {
       </span>
     );
   }
-  // 'waking' state
   return (
     <span className="backend-status waking" title="Waking up backend — may take 30 seconds">
       <span className="status-spinner" />
@@ -44,11 +43,10 @@ export default function App() {
   const [showForm, setShowForm]     = useState(false);
   const [editing, setEditing]       = useState(null);
   const [previewDate, setPreviewDate] = useState(null);
-  const [backendStatus, setBackendStatus] = useState('waking'); // 'waking' | 'live' | 'error'
+  const [backendStatus, setBackendStatus] = useState('waking');
 
   const YEAR = new Date().getFullYear();
 
-  // Wake-up ping: fires immediately on load, retries every 3s until the backend responds
   useEffect(() => {
     let cancelled = false;
     let timer;
@@ -58,16 +56,15 @@ export default function App() {
         const res = await fetch(`${API}/api/health`, { cache: 'no-store' });
         if (res.ok && !cancelled) {
           setBackendStatus('live');
-          return; // stop retrying
+          return;
         }
       } catch {}
       if (!cancelled) {
-        timer = setTimeout(ping, 3000); // retry every 3s if not yet live
+        timer = setTimeout(ping, 3000);
       }
     }
 
     ping();
-    // Timeout to 'error' state after 90s if never responded
     const errorTimer = setTimeout(() => {
       if (!cancelled) setBackendStatus('error');
     }, 90000);
@@ -94,7 +91,6 @@ export default function App() {
     } catch {}
   }, [YEAR]);
 
-  // Fetch data once backend is live
   useEffect(() => {
     if (backendStatus === 'live') fetchAll();
   }, [backendStatus, fetchAll]);
