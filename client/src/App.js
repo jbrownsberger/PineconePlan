@@ -66,7 +66,7 @@ export default function App() {
 
   const YEAR = new Date().getFullYear();
 
-  // ── Keep-alive: runs forever; survives tab-switching ───────────────────
+  // ── Keep-alive: mount/unmount only — never re-runs on state change ─────
   useEffect(() => {
     cancelledRef.current = false;
     let retryTimer = null;
@@ -79,7 +79,6 @@ export default function App() {
         const res = await fetch(`${API}/api/health`, { cache: 'no-store' });
         if (res.ok && !cancelledRef.current) {
           setBackendStatus('live');
-          // Start keep-alive pings every 4 min if not already running
           if (!keepAliveInterval) {
             keepAliveInterval = setInterval(() => {
               if (!cancelledRef.current) {
@@ -89,7 +88,7 @@ export default function App() {
           }
           return;
         }
-      } catch {}
+      } catch (e) {} // eslint-disable-line no-empty
       if (!cancelledRef.current) retryTimer = setTimeout(ping, 3000);
     }
 
@@ -98,7 +97,6 @@ export default function App() {
       if (!cancelledRef.current && statusRef.current !== 'live') setBackendStatus('error');
     }, 90000);
 
-    // Re-ping when tab becomes visible (re-check, never tear down interval)
     function onVisibility() {
       if (document.visibilityState === 'visible' && !cancelledRef.current) {
         fetch(`${API}/api/health`, { cache: 'no-store' })
@@ -115,8 +113,7 @@ export default function App() {
       clearInterval(keepAliveInterval);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ← empty deps: mount/unmount only — never re-runs on tab change
+  }, []); // empty deps intentional: this effect owns its own lifecycle via refs
 
   // ── Data fetch ─────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -127,10 +124,9 @@ export default function App() {
         fetch(`${API}/api/gatherings`).then(r => r.json()),
       ]);
       setEntries(e); setOverlaps(o); setGatherings(g);
-    } catch {}
+    } catch (e) {} // eslint-disable-line no-empty
   }, []);
 
-  // Fetch once backend is live; re-fetch when tab becomes visible
   useEffect(() => {
     if (backendStatus === 'live') fetchAll();
   }, [backendStatus, fetchAll]);
@@ -166,7 +162,7 @@ export default function App() {
 
   function openEdit(entry) {
     if (entry && entry.__paintNew) {
-      const { __paintNew, id, ...rest } = entry;
+      const { __paintNew, id, ...rest } = entry; // eslint-disable-line no-unused-vars
       setEditing({ ...rest, __paintNew: true });
     } else {
       setEditing(entry);
