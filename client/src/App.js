@@ -8,20 +8,16 @@ import './App.css';
 
 const API = process.env.REACT_APP_API_URL || 'https://pineconeplanbackend.onrender.com';
 
+// Pinecone emoji logo ──────────────────────────────────────────────────────
 function PineconeLogo() {
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-label="PineconePlan" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="16" cy="20" rx="7" ry="9" fill="#5ea070" opacity="0.9"/>
-      <ellipse cx="16" cy="17" rx="6" ry="7" fill="#3a7a50"/>
-      <ellipse cx="16" cy="14" rx="5" ry="5.5" fill="#2a5c3a"/>
-      <ellipse cx="16" cy="11" rx="4" ry="4" fill="#1b3a24"/>
-      <rect x="15" y="3" width="2" height="5" rx="1" fill="#9e7a60"/>
-      <ellipse cx="16" cy="3.5" rx="2.5" ry="1.5" fill="#c77b2a"/>
-      <line x1="10" y1="18" x2="13" y2="16" stroke="#ddeee4" strokeWidth="0.8" opacity="0.7"/>
-      <line x1="22" y1="18" x2="19" y2="16" stroke="#ddeee4" strokeWidth="0.8" opacity="0.7"/>
-      <line x1="11" y1="22" x2="14" y2="20" stroke="#ddeee4" strokeWidth="0.8" opacity="0.7"/>
-      <line x1="21" y1="22" x2="18" y2="20" stroke="#ddeee4" strokeWidth="0.8" opacity="0.7"/>
-    </svg>
+    <span
+      role="img"
+      aria-label="PineconePlan"
+      style={{ fontSize: '2rem', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+    >
+      🌲
+    </span>
   );
 }
 
@@ -59,14 +55,13 @@ export default function App() {
   const [editing,    setEditing]    = useState(null);
   const [backendStatus, setBackendStatus] = useState('waking');
 
-  // Stable refs so interval callbacks never hold stale closures
   const statusRef    = useRef(backendStatus);
   const cancelledRef = useRef(false);
   useEffect(() => { statusRef.current = backendStatus; }, [backendStatus]);
 
   const YEAR = new Date().getFullYear();
 
-  // ── Keep-alive: mount/unmount only — never re-runs on state change ─────
+  // ── Keep-alive ping (mount/unmount only) ──────────────────────────────
   useEffect(() => {
     cancelledRef.current = false;
     let retryTimer = null;
@@ -81,14 +76,12 @@ export default function App() {
           setBackendStatus('live');
           if (!keepAliveInterval) {
             keepAliveInterval = setInterval(() => {
-              if (!cancelledRef.current) {
-                fetch(`${API}/api/health`, { cache: 'no-store' }).catch(() => {});
-              }
+              if (!cancelledRef.current) fetch(`${API}/api/health`, { cache: 'no-store' }).catch(() => {});
             }, 4 * 60 * 1000);
           }
           return;
         }
-      } catch (e) {} // eslint-disable-line no-empty
+      } catch (err) { } // eslint-disable-line no-empty
       if (!cancelledRef.current) retryTimer = setTimeout(ping, 3000);
     }
 
@@ -113,7 +106,7 @@ export default function App() {
       clearInterval(keepAliveInterval);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []); // empty deps intentional: this effect owns its own lifecycle via refs
+  }, []); // empty deps intentional: lifecycle managed via refs
 
   // ── Data fetch ─────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -124,7 +117,7 @@ export default function App() {
         fetch(`${API}/api/gatherings`).then(r => r.json()),
       ]);
       setEntries(e); setOverlaps(o); setGatherings(g);
-    } catch (e) {} // eslint-disable-line no-empty
+    } catch (err) { } // eslint-disable-line no-empty
   }, []);
 
   useEffect(() => {
@@ -139,7 +132,7 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [fetchAll]);
 
-  // ── Entry CRUD ─────────────────────────────────────────────────────────
+  // ── CRUD ───────────────────────────────────────────────────────────────
   async function saveEntry(data) {
     const { __paintNew, ...clean } = data;
     if (editing && editing.id && !__paintNew) {
@@ -162,8 +155,8 @@ export default function App() {
 
   function openEdit(entry) {
     if (entry && entry.__paintNew) {
-      const { __paintNew, id, ...rest } = entry; // eslint-disable-line no-unused-vars
-      setEditing({ ...rest, __paintNew: true });
+      const { id, ...rest } = entry; // eslint-disable-line no-unused-vars
+      setEditing({ ...rest });
     } else {
       setEditing(entry);
     }
