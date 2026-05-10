@@ -3,8 +3,7 @@
 .entry-form h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
 .entry-form label { display: flex; flex-direction: column; gap: 5px; font-size: 0.85rem; font-weight: 600; color: #444; }
 .entry-form input,
-.entry-form textarea,
-.entry-form select {
+.entry-form textarea {
   padding: 9px 12px;
   border: 1.5px solid #d8d8d8;
   border-radius: 8px;
@@ -26,11 +25,11 @@
 .type-btn {
   flex: 1;
   min-width: 80px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1.5px solid #d8d8d8;
+  padding: 10px 10px;
+  border-radius: 10px;
+  border: 2px solid #d8d8d8;
   background: #f7f8fa;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -38,6 +37,20 @@
   color: #666;
 }
 .type-btn:hover { background: #f0f2f5; border-color: #bbb; }
+.type-btn.active.type-stay    { background: #edf7f1; border-color: #3a7a50; color: #3a7a50; }
+.type-btn.active.type-travel  { background: #eef0fb; border-color: #5567b0; color: #5567b0; }
+.type-btn.active.type-event   { background: #f8f0fb; border-color: #9b59b6; color: #9b59b6; }
+
+/* ── Travel note ──────────────────────────────────── */
+.travel-note {
+  background: #eef0fb;
+  border: 1.5px solid #c5caee;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.83rem;
+  color: #5567b0;
+  font-style: italic;
+}
 
 /* ── Location autocomplete ────────────────────────── */
 .loc-row { position: relative; }
@@ -46,15 +59,13 @@
 .loc-dropdown {
   position: absolute;
   top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  left: 0; right: 0;
   background: white;
   border: 1.5px solid #d8d8d8;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   list-style: none;
-  margin: 0;
-  padding: 4px 0;
+  margin: 0; padding: 4px 0;
   z-index: 999;
   max-height: 220px;
   overflow-y: auto;
@@ -70,12 +81,7 @@
   transition: background 100ms;
 }
 .loc-option:hover { background: #f0f5f2; }
-.loc-coords {
-  margin-left: auto;
-  font-size: 0.72rem;
-  color: #bbb;
-  white-space: nowrap;
-}
+.loc-coords { margin-left: auto; font-size: 0.72rem; color: #bbb; white-space: nowrap; }
 
 /* ── Lat/lng toggle ───────────────────────────────── */
 .latlong-toggle {
@@ -101,9 +107,9 @@
 .commit-btn {
   flex: 1;
   min-width: 80px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   border-radius: 999px;
-  border: 1.5px solid #d8d8d8;
+  border: 2px solid #d8d8d8;
   background: #f7f8fa;
   font-size: 0.82rem;
   font-weight: 600;
@@ -113,11 +119,10 @@
   color: #555;
 }
 .commit-btn:hover { background: #f0f2f5; border-color: #bbb; }
-.commit-btn.active {
-  background: #3a7a5018;
-  border-color: #3a7a50;
-  color: #3a7a50;
-}
+.commit-btn.commit-fixed.active    { background: #fdecea; border-color: #e94560; color: #c0303f; }
+.commit-btn.commit-likely.active   { background: #fef5ec; border-color: #f4a261; color: #c07830; }
+.commit-btn.commit-flexible.active { background: #e8f8f7; border-color: #2ec4b6; color: #1e9189; }
+
 .commit-hint {
   font-size: 0.78rem;
   color: #999;
