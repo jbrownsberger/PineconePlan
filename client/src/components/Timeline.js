@@ -1,8 +1,7 @@
-import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { eachDayOfInterval, format, isWeekend, parseISO, addDays, subDays } from 'date-fns';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { eachDayOfInterval, format, isWeekend, parseISO } from 'date-fns';
 import './Timeline.css';
 
-// ── Location colour palette (forest / earthy) ──────────────────────────────
 const PALETTE = [
   '#4a7c59','#c06e3a','#5b7fa6','#9b4f7a','#7a7a2e','#3a7a7a',
   '#a65c3a','#4f6ea6','#7a4f9b','#3a6e4f','#a6883a','#5a3a6e',
@@ -18,12 +17,12 @@ export function locationColor(loc) {
   return locColorCache[key];
 }
 
-// ── Commitment rendering helpers ────────────────────────────────────────────
-const COMMIT_OPACITY  = { Fixed: 1, Likely: 0.55, Flexible: 0.28, Travel: 0.7, Event: 1 };
-const COMMIT_ICON     = { Travel: '✈', Event: '🎉' };
-const COMMIT_HATCHED  = { Flexible: true };
+// COMMIT_OPACITY/HATCHED keyed by commitment (Fixed/Likely/Flexible).
+// TYPE_ICON keyed by entry.type (Travel/Event) — separate field from commitment.
+const COMMIT_OPACITY = { Fixed: 1, Likely: 0.6, Flexible: 0.3 };
+const COMMIT_HATCHED = { Flexible: true };
+const TYPE_ICON = { Travel: '✈', Event: '🎉' };
 
-// ── Month header helper ─────────────────────────────────────────────────────
 function buildMonthSpans(days) {
   const spans = [];
   let cur = null;
@@ -40,10 +39,9 @@ function buildMonthSpans(days) {
 }
 
 export default function Timeline({ entries, people, onEdit, onDelete }) {
-  // ── Date range state ──────────────────────────────────────────────────────
   const thisYear = new Date().getFullYear();
   const [rangeStart, setRangeStart] = useState(`${thisYear}-06-01`);
-  const [rangeEnd,   setRangeEnd]   = useState(`${thisYear}-08-31`);
+  const [rangeEnd, setRangeEnd] = useState(`${thisYear}-08-31`);
 
   const days = useMemo(() => {
     try {
@@ -56,36 +54,36 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
 
   const monthSpans = useMemo(() => buildMonthSpans(days), [days]);
 
-  // ── Location legend (sorted by first appearance) ──────────────────────────
   const locations = useMemo(() => {
     const seen = [];
-    entries.forEach(e => {
+    entries.forEach((e) => {
       const k = (e.location || '').trim();
       if (k && !seen.includes(k)) seen.push(k);
     });
     return seen;
   }, [entries]);
 
-  // ── Paint-to-select state ─────────────────────────────────────────────────
-  const [paintPerson, setPaintPerson]     = useState(null);
-  const [paintStart,  setPaintStart]      = useState(null);  // date string
-  const [paintEnd,    setPaintEnd]        = useState(null);  // date string
-  const [paintActive, setPaintActive]     = useState(false);
-  const tableRef = useRef(null);
+  const [paintPerson, setPaintPerson] = useState(null);
+  const [paintStart, setPaintStart] = useState(null);
+  const [paintEnd, setPaintEnd] = useState(null);
+  const [paintActive, setPaintActive] = useState(false);
+  const paintMovedRef = useRef(false);
 
-  // Mouse-up anywhere ends paint
   useEffect(() => {
     function onUp() {
-      if (paintActive && paintPerson && paintStart && paintEnd) {
-        // normalise so start <= end
-        const a = paintStart < paintEnd ? paintStart : paintEnd;
-        const b = paintStart < paintEnd ? paintEnd   : paintStart;
-        onEdit({ __paintNew: true, person: paintPerson, start_date: a, end_date: b });
+      if (paintActive && paintPerson && paintStart) {
+        const end = paintEnd || paintStart;
+        const a = paintStart <= end ? paintStart : end;
+        const b = paintStart <= end ? end : paintStart;
+        if (paintMovedRef.current) {
+          onEdit({ __paintNew: true, person: paintPerson, start_date: a, end_date: b });
+        }
       }
       setPaintActive(false);
       setPaintPerson(null);
       setPaintStart(null);
       setPaintEnd(null);
+      paintMovedRef.current = false;
     }
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchend', onUp);
@@ -100,34 +98,45 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
     setPaintPerson(person);
     setPaintStart(ds);
     setPaintEnd(ds);
+    paintMovedRef.current = false;
   }
+
   function handleCellEnter(person, ds) {
-    if (paintActive && person === paintPerson) setPaintEnd(ds);
+    if (paintActive && person === paintPerson) {
+      setPaintEnd(ds);
+      if (ds !== paintStart) paintMovedRef.current = true;
+    }
+  }
+
+  function handleCellClick(person, ds, match) {
+    if (paintMovedRef.current) return;
+    if (match) {
+      onEdit(match);
+    } else {
+      onEdit({ __paintNew: true, person, start_date: ds, end_date: ds });
+    }
   }
 
   function isPaintHighlighted(person, ds) {
-    if (!paintActive || person !== paintPerson) return false;
-    const a = paintStart < paintEnd ? paintStart : paintEnd;
-    const b = paintStart < paintEnd ? paintEnd   : paintStart;
+    if (!paintActive || person !== paintPerson || !paintStart) return false;
+    const end = paintEnd || paintStart;
+    const a = paintStart <= end ? paintStart : end;
+    const b = paintStart <= end ? end : paintStart;
     return ds >= a && ds <= b;
   }
 
   return (
     <div className="timeline-wrap">
-
-      {/* ── Controls bar ───────────────────────────────────────────────── */}
       <div className="timeline-controls">
         <div className="range-pickers">
           <label>
             From
-            <input type="date" value={rangeStart}
-              onChange={e => setRangeStart(e.target.value)} />
+            <input type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
           </label>
           <span className="range-sep">→</span>
           <label>
             To
-            <input type="date" value={rangeEnd}
-              onChange={e => setRangeEnd(e.target.value)} />
+            <input type="date" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
           </label>
           <span className="day-count">{days.length} days</span>
         </div>
@@ -140,10 +149,9 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
         </div>
       </div>
 
-      {/* ── Location colour legend ──────────────────────────────────────── */}
       {locations.length > 0 && (
         <div className="loc-legend">
-          {locations.map(loc => (
+          {locations.map((loc) => (
             <span key={loc} className="loc-legend-item">
               <span className="loc-dot" style={{ background: locationColor(loc) }} />
               {loc}
@@ -152,72 +160,123 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
         </div>
       )}
 
-      {/* ── Paint hint ─────────────────────────────────────────────────── */}
-      <div className="paint-hint">💡 Drag across a row to paint a new entry</div>
+      <div className="paint-hint">💡 Click a cell to add an entry · Drag across a row to paint a date range</div>
 
-      {/* ── Gantt grid ─────────────────────────────────────────────────── */}
-      <div className="timeline-scroll" ref={tableRef}>
-        <table className="timeline-table" onMouseLeave={() => { if (paintActive) { setPaintActive(false); setPaintPerson(null); setPaintStart(null); setPaintEnd(null); } }}>
+      <div className="timeline-scroll">
+        <table
+          className="timeline-table"
+          onMouseLeave={() => {
+            if (paintActive) {
+              setPaintActive(false);
+              setPaintPerson(null);
+              setPaintStart(null);
+              setPaintEnd(null);
+              paintMovedRef.current = false;
+            }
+          }}
+        >
           <thead>
-            {/* Month row */}
             <tr className="month-row">
               <th className="name-col" />
-              {monthSpans.map(ms => (
-                <th key={ms.label} colSpan={ms.count} className="month-header">{ms.label}</th>
+              {monthSpans.map((ms) => (
+                <th key={ms.label} colSpan={ms.count} className="month-header">
+                  {ms.label}
+                </th>
               ))}
             </tr>
-            {/* Day-of-week row */}
             <tr className="dow-row">
               <th className="name-col" />
-              {days.map(d => (
-                <th key={d.toISOString()} className={`day-col${isWeekend(d) ? ' weekend' : ''}`}
-                  title={format(d, 'EEE MMM d')}>
+              {days.map((d) => (
+                <th
+                  key={d.toISOString()}
+                  className={`day-col${isWeekend(d) ? ' weekend' : ''}`}
+                  title={format(d, 'EEE MMM d')}
+                >
                   {format(d, 'd') === '1' ? format(d, 'MMM d') : format(d, 'd')}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {people.map(person => {
-              const pEntries = entries.filter(e => e.person === person);
+            {people.map((person) => {
+              const pEntries = entries.filter((e) => e.person === person);
               return (
                 <tr key={person} className="person-row">
-                  <td className="name-col"><strong>{person}</strong></td>
-                  {days.map(day => {
+                  <td className="name-col">
+                    <strong>{person}</strong>
+                  </td>
+                  {days.map((day) => {
                     const ds = format(day, 'yyyy-MM-dd');
-                    const match = pEntries.find(e => ds >= e.start_date && ds <= e.end_date);
+                    const match = pEntries.find((e) => ds >= e.start_date && ds <= e.end_date);
                     const highlighted = isPaintHighlighted(person, ds);
-                    const isFirst = match && (ds === match.start_date || (parseISO(rangeStart) > parseISO(match.start_date) && ds === format(parseISO(rangeStart), 'yyyy-MM-dd')));
+                    const isFirst =
+                      match &&
+                      (ds === match.start_date ||
+                        (parseISO(rangeStart) > parseISO(match.start_date) &&
+                          ds === format(parseISO(rangeStart), 'yyyy-MM-dd')));
                     const baseColor = match ? locationColor(match.location) : null;
-                    const opacity   = match ? (COMMIT_OPACITY[match.commitment] ?? 0.8) : 1;
-                    const hatched   = match ? !!COMMIT_HATCHED[match.commitment] : false;
-                    const icon      = match ? COMMIT_ICON[match.commitment] : null;
+                    const opacity = match ? COMMIT_OPACITY[match.commitment] ?? 0.8 : 1;
+                    const hatched = match ? !!COMMIT_HATCHED[match.commitment] : false;
+                    const icon = match ? TYPE_ICON[match.type] ?? null : null;
+                    const isTravel = match && match.type === 'Travel';
+
+                    let fillStyle = {};
+                    if (match) {
+                      if (hatched) {
+                        fillStyle = {
+                          background: `repeating-linear-gradient(45deg, ${baseColor} 0px, ${baseColor} 3px, transparent 3px, transparent 7px)`,
+                          opacity,
+                        };
+                      } else if (isTravel) {
+                        fillStyle = {
+                          background: `repeating-linear-gradient(60deg, ${baseColor} 0px, ${baseColor} 4px, transparent 4px, transparent 9px)`,
+                          opacity,
+                        };
+                      } else {
+                        fillStyle = { background: baseColor, opacity };
+                      }
+                    }
 
                     return (
-                      <td key={ds}
-                        className={`day-cell${isWeekend(day) ? ' weekend' : ''}${highlighted ? ' paint-hi' : ''}`}
-                        title={match ? `${match.location} · ${match.commitment}${match.notes ? ' — ' + match.notes : ''}` : 'Drag to add'}
-                        onMouseDown={e => { e.preventDefault(); handleCellDown(person, ds); }}
+                      <td
+                        key={ds}
+                        className={[
+                          'day-cell',
+                          isWeekend(day) ? 'weekend' : '',
+                          highlighted ? 'paint-hi' : '',
+                          isTravel ? 'travel-cell' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        title={
+                          match
+                            ? `${match.person} · ${match.type} · ${match.location} · ${match.commitment}${match.notes ? ' — ' + match.notes : ''}`
+                            : `Click or drag to add for ${person}`
+                        }
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleCellDown(person, ds);
+                        }}
                         onMouseEnter={() => handleCellEnter(person, ds)}
-                        onTouchStart={e => { e.preventDefault(); handleCellDown(person, ds); }}
-                        onTouchMove={e => {
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          handleCellDown(person, ds);
+                        }}
+                        onTouchMove={(e) => {
                           const t = e.touches[0];
                           const el = document.elementFromPoint(t.clientX, t.clientY);
-                          if (el && el.dataset.ds && el.dataset.person === person) handleCellEnter(person, el.dataset.ds);
+                          if (el && el.dataset.ds && el.dataset.person === person) {
+                            handleCellEnter(person, el.dataset.ds);
+                          }
                         }}
                         data-ds={ds}
                         data-person={person}
-                        onClick={() => match && onEdit(match)}
+                        onClick={() => handleCellClick(person, ds, match)}
                       >
                         {match && (
                           <div
-                            className={`day-fill${hatched ? ' hatched' : ''}`}
-                            style={{
-                              background: hatched
-                                ? `repeating-linear-gradient(45deg, ${baseColor} 0px, ${baseColor} 3px, transparent 3px, transparent 7px)`
-                                : baseColor,
-                              opacity,
-                            }}
+                            className={`day-fill${hatched ? ' hatched' : ''}${isTravel ? ' travel-fill' : ''}`}
+                            style={fillStyle}
                           >
                             {icon && isFirst && <span className="commit-icon">{icon}</span>}
                           </div>
@@ -233,31 +292,33 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
         </table>
       </div>
 
-      {/* ── Entry chips (edit/delete sidebar) ──────────────────────────── */}
       <div className="entry-list">
-        {people.map(person => {
-          const pEntries = entries.filter(e => e.person === person);
+        {people.map((person) => {
+          const pEntries = entries
+            .filter((e) => e.person === person)
+            .sort((a, b) => a.start_date.localeCompare(b.start_date));
           if (!pEntries.length) return null;
           return (
-            <div key={person} className="entry-list-person">
-              <strong>{person}</strong>
-              {pEntries.map(e => (
-                <div key={e.id} className="entry-chip"
-                  style={{ borderLeft: `4px solid ${locationColor(e.location)}` }}>
-                  <span className="chip-loc">{e.location}</span>
-                  <span className="chip-dates">{e.start_date} → {e.end_date}</span>
-                  <span className="chip-commit" style={{ opacity: COMMIT_OPACITY[e.commitment] ?? 0.8 }}>
-                    {COMMIT_ICON[e.commitment] || ''} {e.commitment}
-                  </span>
-                  <button className="chip-btn" onClick={() => onEdit(e)} title="Edit">✏️</button>
-                  <button className="chip-btn" onClick={() => onDelete(e.id)} title="Delete">🗑️</button>
-                </div>
-              ))}
+            <div key={person} className="person-entry-group">
+              <div className="person-entry-name">{person}</div>
+              <div className="entry-chips">
+                {pEntries.map((e) => (
+                  <div key={e.id} className="entry-chip" style={{ borderLeft: `4px solid ${locationColor(e.location)}` }}>
+                    <span className="chip-type">{TYPE_ICON[e.type] || '🏠'}</span>
+                    <span className="chip-loc">{e.location}</span>
+                    <span className="chip-dates">{e.start_date} → {e.end_date}</span>
+                    <span className={`chip-commit chip-commit-${(e.commitment || '').toLowerCase()}`}>{e.commitment}</span>
+                    <div className="chip-actions">
+                      <button className="chip-btn" onClick={() => onEdit(e)} title="Edit">✏️</button>
+                      <button className="chip-btn chip-del" onClick={() => onDelete(e.id)} title="Delete">🗑</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })}
       </div>
-
     </div>
   );
 }
