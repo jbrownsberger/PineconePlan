@@ -13,11 +13,11 @@ const COMMITMENTS = [
   { id: 'Flexible', icon: '🔄', hint: 'Tentative — happy to change for family coordination' },
 ];
 
-function useLocationSuggest(query, enabled) {
-  const [suggestions, setSuggestions] = React.useState([]);
+function useLocationSuggest(query) {
+  const [suggestions, setSuggestions] = useState([]);
   const timerRef = useRef(null);
   useEffect(() => {
-    if (!enabled || !query || query.length < 2) { setSuggestions([]); return; }
+    if (!query || query.length < 2) { setSuggestions([]); return; }
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       try {
@@ -45,41 +45,42 @@ function useLocationSuggest(query, enabled) {
       } catch { setSuggestions([]); }
     }, 300);
     return () => clearTimeout(timerRef.current);
-  }, [query, enabled]);
+  }, [query]);
   return suggestions;
 }
 
-function buildDefault(initial) {
-  const today = new Date().toISOString().split('T')[0];
-  return {
-    person: '', location: '', lat: '', lng: '',
-    start_date: today, end_date: today,
-    commitment: 'Likely', type: 'Stay', notes: '',
-    ...initial,
-  };
-}
+const BLANK = {
+  person: '', location: '', lat: '', lng: '',
+  start_date: new Date().toISOString().split('T')[0],
+  end_date:   new Date().toISOString().split('T')[0],
+  commitment: 'Likely', type: 'Stay', notes: '',
+};
 
 export default function EntryForm({ initial, onSave, onCancel }) {
-  const initialKeyRef = useRef(null);
-  const [form, setForm] = useState(() => buildDefault(initial));
+  const entryKey = initial
+    ? (initial.id || ('new-' + initial.person + '-' + initial.start_date))
+    : 'new';
+  const prevKeyRef = useRef(null);
+
+  const [form, setForm] = useState({ ...BLANK, ...initial });
   const [showLatLng, setShowLatLng] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [locQuery, setLocQuery] = useState(initial?.location || '');
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const key = initial
-      ? (initial.id || `new-${initial.person}-${initial.start_date}`)
-      : 'empty';
-    if (key !== initialKeyRef.current) {
-      initialKeyRef.current = key;
-      setForm(buildDefault(initial));
-      setLocQuery(initial?.location || '');
+    if (entryKey !== prevKeyRef.current) {
+      prevKeyRef.current = entryKey;
+      const merged = { ...BLANK, ...initial };
+      setForm(merged);
+      setLocQuery(merged.type === 'Travel' ? '' : (merged.location || ''));
+      setShowLatLng(false);
     }
-  }, [initial]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryKey]);
 
   const isTravel = form.type === 'Travel';
-  const suggestions = useLocationSuggest(locQuery, !isTravel);
+  const suggestions = useLocationSuggest(isTravel ? '' : locQuery);
 
   useEffect(() => {
     function onDown(e) {
@@ -89,10 +90,7 @@ export default function EntryForm({ initial, onSave, onCancel }) {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  useEffect(() => {
-    if (suggestions.length > 0) setDropdownOpen(true);
-    else setDropdownOpen(false);
-  }, [suggestions]);
+  useEffect(() => { setDropdownOpen(suggestions.length > 0); }, [suggestions]);
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -104,8 +102,10 @@ export default function EntryForm({ initial, onSave, onCancel }) {
   function handleTypeChange(typeId) {
     set('type', typeId);
     if (typeId === 'Travel') {
-      set('location', ''); set('lat', ''); set('lng', '');
+      set('location', 'Travel'); set('lat', ''); set('lng', '');
       setLocQuery('');
+    } else if (form.type === 'Travel') {
+      set('location', ''); setLocQuery('');
     }
   }
 
@@ -115,23 +115,28 @@ export default function EntryForm({ initial, onSave, onCancel }) {
     if (!isTravel && !form.location) return;
     onSave({
       ...form,
-      location: isTravel ? '' : form.location,
+      location: isTravel ? 'Travel' : form.location,
       lat: isTravel ? null : (form.lat || null),
       lng: isTravel ? null : (form.lng || null),
     });
   }
 
-  const isEdit = !!(initial && initial.id);
+  const typeStyle = (t) => {
+    if (form.type !== t.id) return {};
+    const colors = { Stay: '#3a7a50', Travel: '#5567b0', Event: '#9b59b6' };
+    return { background: colors[t.id] + '18', borderColor: colors[t.id], color: colors[t.id] };
+  };
 
   return (
     <form className="entry-form" onSubmit={submit}>
-      <h2>{isEdit ? 'Edit Entry' : 'Add Plans'}</h2>
+      <h2>{initial && initial.id ? 'Edit Entry' : 'Add Plans'}</h2>
 
       <label>Type
         <div className="entry-type-row">
           {TYPES.map(t => (
             <button key={t.id} type="button"
-              className={`type-btn${form.type === t.id ? ' active' : ''} type-${t.id.toLowerCase()}`}
+              className={`type-btn ${form.type === t.id ? 'active' : ''}`}
+              style={typeStyle(t)}
               onClick={() => handleTypeChange(t.id)}
               title={t.hint}>
               {t.icon} {t.label}
@@ -156,7 +161,6 @@ export default function EntryForm({ initial, onSave, onCancel }) {
                 onChange={e => { setLocQuery(e.target.value); set('location', e.target.value); }}
                 onFocus={() => { if (suggestions.length) setDropdownOpen(true); }}
                 placeholder="Start typing a city…"
-                required
                 autoComplete="off"
               />
               {dropdownOpen && suggestions.length > 0 && (
@@ -173,12 +177,6 @@ export default function EntryForm({ initial, onSave, onCancel }) {
             </div>
           </div>
         </label>
-      )}
-
-      {isTravel && (
-        <div className="travel-note">
-          ✈️ Travel days don't need a specific location — they appear as transit stripes on the timeline.
-        </div>
       )}
 
       {!isTravel && (
@@ -204,10 +202,7 @@ export default function EntryForm({ initial, onSave, onCancel }) {
       <div className="row2">
         <label>Start Date *
           <input type="date" value={form.start_date}
-            onChange={e => {
-              set('start_date', e.target.value);
-              if (e.target.value > form.end_date) set('end_date', e.target.value);
-            }} required />
+            onChange={e => set('start_date', e.target.value)} required />
         </label>
         <label>End Date *
           <input type="date" value={form.end_date} min={form.start_date}
@@ -219,7 +214,7 @@ export default function EntryForm({ initial, onSave, onCancel }) {
         <div className="commitment-row">
           {COMMITMENTS.map(c => (
             <button key={c.id} type="button"
-              className={`commit-btn commit-${c.id.toLowerCase()}${form.commitment === c.id ? ' active' : ''}`}
+              className={`commit-btn ${form.commitment === c.id ? 'active' : ''}`}
               onClick={() => set('commitment', c.id)}>
               {c.icon} {c.id}
             </button>
@@ -237,7 +232,7 @@ export default function EntryForm({ initial, onSave, onCancel }) {
       <div className="form-actions">
         <button type="button" className="btn-cancel" onClick={onCancel}>Cancel</button>
         <button type="submit" className="btn-primary">
-          {isEdit ? 'Save Changes' : 'Add Entry'}
+          {initial && initial.id ? 'Save Changes' : 'Add Entry'}
         </button>
       </div>
     </form>

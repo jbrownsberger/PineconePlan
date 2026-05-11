@@ -1,4 +1,3 @@
-/* ── Timeline wrapper ──────────────────────────────────────────────────── */
 .timeline-wrap {
   display: flex;
   flex-direction: column;
@@ -6,7 +5,6 @@
   user-select: none;
 }
 
-/* ── Controls bar ──────────────────────────────────────────────────────── */
 .timeline-controls {
   display: flex;
   align-items: center;
@@ -40,39 +38,46 @@
 .range-sep { color: #aaa; font-size: 0.9rem; }
 .day-count { font-size: 0.78rem; color: #aaa; margin-left: 4px; }
 
-/* ── Commitment/type legend ────────────────────────────────────────────── */
 .commit-legend {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
+.commit-legend > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 .cl-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #999;
+  color: #888;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 700;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
 }
-.cl-swatch {
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 2px 9px;
-  border-radius: 999px;
-  cursor: default;
+.cl-fixed    { background: #4a7c5922; color: #2d5c3a; border: 1.5px solid #4a7c59; }
+.cl-likely   { background: #4a7c5914; color: #4a7c59; border: 1.5px solid #4a7c5966; opacity: 0.85; }
+.cl-flexible {
+  background: repeating-linear-gradient(45deg, #4a7c5933 0, #4a7c5933 2px, transparent 2px, transparent 6px);
+  color: #3a5c40;
+  border: 1.5px dashed #4a7c5988;
 }
-.cl-fixed    { background: rgba(74,124,89,0.2);   color: #2e6040; }
-.cl-likely   { background: rgba(74,124,89,0.12);  color: #2e6040; }
-.cl-flexible { background: rgba(74,124,89,0.08);  color: #2e6040; outline: 1px dashed #4a7c59; }
-.cl-travel   { background: rgba(122,143,212,0.2); color: #5567b0; }
-.cl-event    { background: rgba(176,111,207,0.2); color: #8e44ad; }
+.cl-travel {
+  background: repeating-linear-gradient(55deg, #7a90bb44 0, #7a90bb44 4px, #b8c8e844 4px, #b8c8e844 8px);
+  color: #445577;
+  border: 1.5px solid #7a90bb88;
+}
+.cl-event { background: #9b59b614; color: #6a3a8a; border: 1.5px solid #9b59b666; }
 
-/* ── Location colour legend ────────────────────────────────────────────── */
 .loc-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 6px 2px;
+  gap: 8px 14px;
+  padding: 8px 2px;
 }
 .loc-legend-item {
   display: flex;
@@ -82,20 +87,19 @@
   color: #444;
 }
 .loc-dot {
-  width: 10px; height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
 }
 
-/* ── Paint hint ────────────────────────────────────────────────────────── */
 .paint-hint {
   font-size: 0.78rem;
   color: #aaa;
   padding-left: 2px;
 }
 
-/* ── Scroll container ──────────────────────────────────────────────────── */
 .timeline-scroll {
   overflow-x: auto;
   overflow-y: visible;
@@ -103,7 +107,6 @@
   border-radius: 10px;
 }
 
-/* ── Table ─────────────────────────────────────────────────────────────── */
 .timeline-table {
   border-collapse: collapse;
   font-size: 0.78rem;
@@ -173,18 +176,26 @@
   border-radius: 2px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   overflow: hidden;
   pointer-events: none;
 }
-.day-cell.type-travel .day-fill { box-shadow: inset 2px 0 0 #5567b0; }
-.day-cell.type-event  .day-fill { box-shadow: inset 2px 0 0 #8e44ad; }
-.day-cell.type-stay   .day-fill { box-shadow: inset 1px 0 0 rgba(0,0,0,0.15); }
+
+.travel-fill {
+  inset: 1px 0;
+  border-top: 1.5px solid #7a90bb88;
+  border-bottom: 1.5px solid #7a90bb88;
+}
+
+.flexible-fill {
+  outline: 1.5px dashed rgba(0,0,0,0.2);
+  outline-offset: -2px;
+}
 
 .commit-icon {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1;
-  padding-left: 3px;
+  padding-left: 2px;
   pointer-events: none;
 }
 
@@ -201,7 +212,6 @@
   to   { opacity: 1; }
 }
 
-/* ── Entry list ─────────────────────────────────────────────────────────── */
 .entry-list {
   display: flex;
   flex-wrap: wrap;
@@ -214,15 +224,12 @@
   gap: 5px;
   min-width: 200px;
 }
-.person-entry-name {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #888;
+.entry-list-person strong {
+  font-size: 0.82rem;
+  color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 0;
+  letter-spacing: 0.04em;
 }
-.entry-chips { display: flex; flex-direction: column; gap: 5px; }
 .entry-chip {
   display: flex;
   align-items: center;
@@ -233,33 +240,32 @@
   padding: 5px 10px;
   font-size: 0.78rem;
   flex-wrap: wrap;
-  cursor: default;
-  transition: box-shadow 120ms;
 }
-.entry-chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.chip-type  { font-size: 0.95rem; }
+.chip-type  { font-size: 0.85rem; }
 .chip-loc   { font-weight: 600; color: #333; }
 .chip-dates { color: #999; font-size: 0.73rem; white-space: nowrap; }
+
 .chip-commit {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
   white-space: nowrap;
+  font-weight: 600;
 }
-.chip-fixed    { background: #fdecea; color: #c0303f; }
-.chip-likely   { background: #fef5ec; color: #c07830; }
-.chip-flexible { background: #e8f8f7; color: #1e9189; }
-.chip-actions  { margin-left: auto; display: flex; gap: 4px; }
+.chip-commit-fixed    { background: #4a7c5922; color: #2d5c3a; border: 1px solid #4a7c5966; }
+.chip-commit-likely   { background: #f0a83022; color: #7a5200; border: 1px solid #f0a83066; }
+.chip-commit-flexible { background: #5b7fa622; color: #2a4a7a; border: 1px dashed #5b7fa688; }
+
 .chip-btn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0 3px;
+  padding: 0 2px;
   font-size: 0.85rem;
   line-height: 1;
-  opacity: 0.5;
+  opacity: 0.55;
   transition: opacity 0.15s;
+  margin-left: auto;
 }
 .chip-btn:hover { opacity: 1; }
-.chip-del:hover { color: #c0303f; }
+.chip-del { margin-left: 0; }

@@ -17,10 +17,8 @@ export function locationColor(loc) {
   return locColorCache[key];
 }
 
-const COMMIT_OPACITY = { Fixed: 1, Likely: 0.72, Flexible: 1 };
-const COMMIT_HATCHED = { Flexible: true };
-const TYPE_COLOR = { Travel: '#7a8fd4', Event: '#b06fcf' };
-const TYPE_ICON  = { Travel: '✈', Event: '🎉' };
+const COMMIT_OPACITY = { Fixed: 1, Likely: 0.7, Flexible: 0.6 };
+const TYPE_ICON      = { Travel: '✈', Event: '🎉' };
 
 function buildMonthSpans(days) {
   const spans = [];
@@ -40,7 +38,8 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
 
   const days = useMemo(() => {
     try {
-      const s = parseISO(rangeStart), e = parseISO(rangeEnd);
+      const s = parseISO(rangeStart);
+      const e = parseISO(rangeEnd);
       if (e >= s) return eachDayOfInterval({ start: s, end: e });
     } catch {}
     return [];
@@ -52,7 +51,7 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
     const seen = [];
     entries.forEach(e => {
       const k = (e.location || '').trim();
-      if (k && !seen.includes(k)) seen.push(k);
+      if (k && k !== 'Travel' && !seen.includes(k)) seen.push(k);
     });
     return seen;
   }, [entries]);
@@ -65,40 +64,37 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
 
   useEffect(() => {
     function onUp() {
-      if (paintActive && paintPerson && paintStart) {
+      if (paintActive && paintPerson && paintStart && paintMovedRef.current) {
         const end = paintEnd || paintStart;
         const a = paintStart <= end ? paintStart : end;
-        const b = paintStart <= end ? end : paintStart;
-        if (paintMovedRef.current) {
-          onEdit({ __paintNew: true, person: paintPerson, start_date: a, end_date: b });
-        }
+        const b = paintStart <= end ? end        : paintStart;
+        onEdit({ __paintNew: true, person: paintPerson, start_date: a, end_date: b });
       }
-      setPaintActive(false); setPaintPerson(null);
-      setPaintStart(null);   setPaintEnd(null);
+      setPaintActive(false);
+      setPaintPerson(null);
+      setPaintStart(null);
+      setPaintEnd(null);
       paintMovedRef.current = false;
     }
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mouseup',  onUp);
     window.addEventListener('touchend', onUp);
     return () => {
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mouseup',  onUp);
       window.removeEventListener('touchend', onUp);
     };
   }, [paintActive, paintPerson, paintStart, paintEnd, onEdit]);
 
-  function handleCellDown(person, ds, e) {
-    e.preventDefault();
+  function handleCellDown(person, ds) {
     setPaintActive(true); setPaintPerson(person);
-    setPaintStart(ds);    setPaintEnd(ds);
+    setPaintStart(ds); setPaintEnd(ds);
     paintMovedRef.current = false;
   }
-
   function handleCellEnter(person, ds) {
-    if (paintActive && person === paintPerson && ds !== paintEnd) {
+    if (paintActive && person === paintPerson) {
       setPaintEnd(ds);
       if (ds !== paintStart) paintMovedRef.current = true;
     }
   }
-
   function handleCellClick(person, ds, match) {
     if (paintMovedRef.current) return;
     if (match) { onEdit(match); }
@@ -109,57 +105,27 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
     if (!paintActive || person !== paintPerson || !paintStart) return false;
     const end = paintEnd || paintStart;
     const a = paintStart <= end ? paintStart : end;
-    const b = paintStart <= end ? end : paintStart;
+    const b = paintStart <= end ? end        : paintStart;
     return ds >= a && ds <= b;
-  }
-
-  function getCellStyle(match) {
-    if (!match) return null;
-    const isTravel = match.type === 'Travel';
-    const isEvent  = match.type === 'Event';
-    const hatched  = COMMIT_HATCHED[match.commitment];
-    const opacity  = COMMIT_OPACITY[match.commitment] ?? 0.8;
-    if (isTravel) {
-      return {
-        background: `repeating-linear-gradient(55deg,
-          ${TYPE_COLOR.Travel} 0px, ${TYPE_COLOR.Travel} 4px,
-          transparent 4px, transparent 10px)`,
-        opacity: 0.85,
-      };
-    }
-    if (isEvent) return { background: TYPE_COLOR.Event, opacity };
-    const base = locationColor(match.location);
-    if (hatched) {
-      return {
-        background: `repeating-linear-gradient(45deg,
-          ${base} 0px, ${base} 3px,
-          rgba(255,255,255,0.55) 3px, rgba(255,255,255,0.55) 7px)`,
-        opacity,
-      };
-    }
-    return { background: base, opacity };
   }
 
   return (
     <div className="timeline-wrap">
+
       <div className="timeline-controls">
         <div className="range-pickers">
-          <label>From
-            <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} />
-          </label>
+          <label>From<input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} /></label>
           <span className="range-sep">→</span>
-          <label>To
-            <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} />
-          </label>
+          <label>To<input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} /></label>
           <span className="day-count">{days.length} days</span>
         </div>
         <div className="commit-legend">
-          <span className="cl-title">Legend:</span>
-          <span className="cl-swatch cl-fixed"   title="Fixed — fully booked">■ Fixed</span>
-          <span className="cl-swatch cl-likely"  title="Likely — strong plan">■ Likely</span>
-          <span className="cl-swatch cl-flexible" title="Flexible — tentative">▨ Flexible</span>
-          <span className="cl-swatch cl-travel"  title="Travel day">✈ Travel</span>
-          <span className="cl-swatch cl-event"   title="Event">🎉 Event</span>
+          <span className="cl-title">Commitment:</span>
+          <span className="cl-fixed">■ Fixed</span>
+          <span className="cl-likely">■ Likely</span>
+          <span className="cl-flexible">⊠ Flexible</span>
+          <span className="cl-travel">⫶ Travel</span>
+          <span className="cl-event">🎉 Event</span>
         </div>
       </div>
 
@@ -174,14 +140,14 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
         </div>
       )}
 
-      <div className="paint-hint">💡 <strong>Click</strong> a cell to add · <strong>Drag</strong> across a row to set a range</div>
+      <div className="paint-hint">💡 Click a cell to add an entry · Drag across a row to paint a date range</div>
 
       <div className="timeline-scroll">
         <table className="timeline-table"
           onMouseLeave={() => {
             if (paintActive) {
               setPaintActive(false); setPaintPerson(null);
-              setPaintStart(null);   setPaintEnd(null);
+              setPaintStart(null); setPaintEnd(null);
               paintMovedRef.current = false;
             }
           }}>
@@ -210,47 +176,69 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
                 <tr key={person} className="person-row">
                   <td className="name-col"><strong>{person}</strong></td>
                   {days.map(day => {
-                    const ds    = format(day, 'yyyy-MM-dd');
+                    const ds = format(day, 'yyyy-MM-dd');
                     const match = pEntries.find(e => ds >= e.start_date && ds <= e.end_date);
-                    const hilit = isPaintHighlighted(person, ds);
+                    const highlighted = isPaintHighlighted(person, ds);
+
                     const isFirst = match && (
                       ds === match.start_date ||
                       (parseISO(rangeStart) > parseISO(match.start_date) &&
-                        ds === format(parseISO(rangeStart), 'yyyy-MM-dd'))
+                       ds === format(parseISO(rangeStart), 'yyyy-MM-dd'))
                     );
-                    const fillStyle = getCellStyle(match);
-                    const icon = match ? TYPE_ICON[match.type] : null;
-                    const cellTitle = match
-                      ? `${match.person} · ${match.type}${match.location ? ' · ' + match.location : ''} · ${match.commitment}${match.notes ? ' — ' + match.notes : ''}`
+
+                    const isTravel   = match && match.type === 'Travel';
+                    const isFlexible = match && match.commitment === 'Flexible';
+                    const baseColor  = match ? (isTravel ? '#8899bb' : locationColor(match.location)) : null;
+                    const opacity    = match ? (COMMIT_OPACITY[match.commitment] ?? 0.8) : 1;
+                    const icon       = match ? (TYPE_ICON[match.type] ?? null) : null;
+
+                    let fillStyle = {};
+                    let fillClass = 'day-fill';
+                    if (match) {
+                      if (isTravel) {
+                        fillStyle = {
+                          background: `repeating-linear-gradient(55deg, #7a90bb 0px, #7a90bb 5px, #b8c8e8 5px, #b8c8e8 10px)`,
+                          opacity: 0.85,
+                        };
+                        fillClass += ' travel-fill';
+                      } else if (isFlexible) {
+                        fillStyle = {
+                          background: `repeating-linear-gradient(45deg, ${baseColor} 0px, ${baseColor} 3px, transparent 3px, transparent 8px)`,
+                          opacity,
+                        };
+                        fillClass += ' flexible-fill';
+                      } else {
+                        fillStyle = { background: baseColor, opacity };
+                      }
+                    }
+
+                    const locLabel = match && !isTravel && match.location ? ' · ' + match.location : '';
+                    const titleStr = match
+                      ? `${match.person} · ${match.type}${locLabel} · ${match.commitment}${match.notes ? ' — ' + match.notes : ''}`
                       : `Click or drag to add for ${person}`;
+
                     return (
                       <td key={ds}
-                        className={[
-                          'day-cell',
-                          isWeekend(day) ? 'weekend' : '',
-                          hilit ? 'paint-hi' : '',
-                          match ? `type-${(match.type||'stay').toLowerCase()}` : '',
-                        ].filter(Boolean).join(' ')}
-                        title={cellTitle}
-                        onMouseDown={e => handleCellDown(person, ds, e)}
+                        className={['day-cell', isWeekend(day) ? 'weekend' : '', highlighted ? 'paint-hi' : ''].filter(Boolean).join(' ')}
+                        title={titleStr}
+                        onMouseDown={e => { e.preventDefault(); handleCellDown(person, ds); }}
                         onMouseEnter={() => handleCellEnter(person, ds)}
-                        onTouchStart={e => { e.preventDefault(); handleCellDown(person, ds, e); }}
+                        onTouchStart={e => { e.preventDefault(); handleCellDown(person, ds); }}
                         onTouchMove={e => {
                           const t = e.touches[0];
                           const el = document.elementFromPoint(t.clientX, t.clientY);
-                          if (el && el.dataset.ds && el.dataset.person === person)
-                            handleCellEnter(person, el.dataset.ds);
+                          if (el?.dataset?.ds && el.dataset.person === person) handleCellEnter(person, el.dataset.ds);
                         }}
                         data-ds={ds}
                         data-person={person}
                         onClick={() => handleCellClick(person, ds, match)}
                       >
                         {match && (
-                          <div className="day-fill" style={fillStyle}>
+                          <div className={fillClass} style={fillStyle}>
                             {icon && isFirst && <span className="commit-icon">{icon}</span>}
                           </div>
                         )}
-                        {hilit && !match && <div className="paint-preview" />}
+                        {highlighted && !match && <div className="paint-preview" />}
                       </td>
                     );
                   })}
@@ -269,26 +257,23 @@ export default function Timeline({ entries, people, onEdit, onDelete }) {
           if (!pEntries.length) return null;
           return (
             <div key={person} className="entry-list-person">
-              <div className="person-entry-name">{person}</div>
-              <div className="entry-chips">
-                {pEntries.map(e => (
-                  <div key={e.id} className="entry-chip"
-                    style={{ borderLeft: `4px solid ${e.type === 'Travel' ? TYPE_COLOR.Travel : e.type === 'Event' ? TYPE_COLOR.Event : locationColor(e.location)}` }}>
-                    <span className="chip-type">{TYPE_ICON[e.type] || '🏠'}</span>
-                    {e.location && <span className="chip-loc">{e.location}</span>}
-                    <span className="chip-dates">{e.start_date} → {e.end_date}</span>
-                    <span className={`chip-commit chip-${(e.commitment||'').toLowerCase()}`}>{e.commitment}</span>
-                    <div className="chip-actions">
-                      <button className="chip-btn" onClick={() => onEdit(e)} title="Edit">✏️</button>
-                      <button className="chip-btn chip-del" onClick={() => onDelete(e.id)} title="Delete">🗑</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <strong>{person}</strong>
+              {pEntries.map(e => (
+                <div key={e.id} className="entry-chip"
+                  style={{ borderLeft: `4px solid ${e.type === 'Travel' ? '#7a90bb' : locationColor(e.location)}` }}>
+                  <span className="chip-type">{TYPE_ICON[e.type] || '🏠'}</span>
+                  {e.type !== 'Travel' && <span className="chip-loc">{e.location}</span>}
+                  <span className="chip-dates">{e.start_date} → {e.end_date}</span>
+                  <span className={`chip-commit chip-commit-${(e.commitment || '').toLowerCase()}`}>{e.commitment}</span>
+                  <button className="chip-btn" onClick={() => onEdit(e)} title="Edit">✏️</button>
+                  <button className="chip-btn chip-del" onClick={() => onDelete(e.id)} title="Delete">🗑️</button>
+                </div>
+              ))}
             </div>
           );
         })}
       </div>
+
     </div>
   );
 }
