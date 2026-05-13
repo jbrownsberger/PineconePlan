@@ -8,7 +8,6 @@ import './App.css';
 
 const API = process.env.REACT_APP_API_URL || 'https://pineconeplanbackend.onrender.com';
 
-// Pinecone emoji logo ──────────────────────────────────────────────────────
 function PineconeLogo() {
   return (
     <span
@@ -52,7 +51,12 @@ export default function App() {
   const [gatherings, setGatherings] = useState([]);
   const [tab,        setTab]        = useState('timeline');
   const [showForm,   setShowForm]   = useState(false);
+  // `editing` is the clean object passed as `initial` to EntryForm.
+  // It never contains __paintNew.
   const [editing,    setEditing]    = useState(null);
+  // Incrementing this forces EntryForm to remount with fresh state
+  // every time the modal opens, regardless of prior form state.
+  const [formKey,    setFormKey]    = useState(0);
   const [backendStatus, setBackendStatus] = useState('waking');
 
   const statusRef    = useRef(backendStatus);
@@ -61,7 +65,7 @@ export default function App() {
 
   const YEAR = new Date().getFullYear();
 
-  // ── Keep-alive ping (mount/unmount only) ──────────────────────────────
+  // ── Keep-alive ping ────────────────────────────────────────────────────
   useEffect(() => {
     cancelledRef.current = false;
     let retryTimer = null;
@@ -106,7 +110,7 @@ export default function App() {
       clearInterval(keepAliveInterval);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []); // empty deps intentional: lifecycle managed via refs
+  }, []);
 
   // ── Data fetch ─────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -134,17 +138,27 @@ export default function App() {
 
   // ── CRUD ───────────────────────────────────────────────────────────────
   async function saveEntry(data) {
-    const { __paintNew, ...clean } = data;
-    if (editing && editing.id && !__paintNew) {
-      await fetch(`${API}/api/entries/${editing.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean),
+    // Check for new entry BEFORE stripping __paintNew, otherwise the
+    // flag is always undefined by the time the branch runs.
+    const isNew = !data.id || !!data.__paintNew;
+    const { __paintNew, ...clean } = data; // eslint-disable-line no-unused-vars
+
+    if (isNew) {
+      await fetch(`${API}/api/entries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clean),
       });
     } else {
-      await fetch(`${API}/api/entries`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean),
+      await fetch(`${API}/api/entries/${clean.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clean),
       });
     }
-    setShowForm(false); setEditing(null); fetchAll();
+    setShowForm(false);
+    setEditing(null);
+    fetchAll();
   }
 
   async function deleteEntry(id) {
@@ -153,13 +167,24 @@ export default function App() {
     fetchAll();
   }
 
+  // openEdit is called from the ✏️ chip button (real entry with id)
+  // AND from Timeline cell clicks/drags (__paintNew entries without id).
   function openEdit(entry) {
+    let initial;
     if (entry && entry.__paintNew) {
-      const { id, ...rest } = entry; // eslint-disable-line no-unused-vars
-      setEditing({ ...rest });
+      // New entry pre-filled with person + dates from the timeline paint.
+      // Strip __paintNew and any stale id so saveEntry POSTs correctly.
+      const { __paintNew, id, ...rest } = entry; // eslint-disable-line no-unused-vars
+      initial = { ...rest };
     } else {
-      setEditing(entry);
+      // Existing entry — pass through as-is so the form edits it.
+      initial = entry || null;
     }
+    setEditing(initial);
+    // Incrementing formKey forces EntryForm to remount with a clean
+    // useState initialised from the new `initial` prop. Without this,
+    // opening the same entry twice in a row would leave stale form state.
+    setFormKey(k => k + 1);
     setShowForm(true);
   }
 
@@ -178,7 +203,7 @@ export default function App() {
         <div className="header-right">
           <BackendStatus status={backendStatus} />
           <button className="btn-primary"
-            onClick={() => { setEditing(null); setShowForm(true); }}>
+            onClick={() => { setEditing(null); setFormKey(k => k + 1); setShowForm(true); }}>
             + Add Plans
           </button>
         </div>
@@ -229,8 +254,18 @@ export default function App() {
         <div className="modal-overlay"
           onClick={() => { setShowForm(false); setEditing(null); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <EntryForm initial={editing} onSave={saveEntry}
-              onCancel={() => { setShowForm(false); setEditing(null); }} />
+            {/*
+              key=formKey forces a true remount every time the modal opens.
+              This guarantees EntryForm's useState always initialises from
+              the correct `initial` prop, with no stale state from a prior
+              open. The prevKeyRef pattern inside EntryForm is removed.
+            */}
+            <EntryForm
+              key={formKey}
+              initial={editing}
+              onSave={saveEntry}
+              onCancel={() => { setShowForm(false); setEditing(null); }}
+            />
           </div>
         </div>
       )}

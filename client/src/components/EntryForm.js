@@ -56,28 +56,21 @@ const BLANK = {
   commitment: 'Likely', type: 'Stay', notes: '',
 };
 
+// App.js passes key=formKey so this component remounts completely fresh
+// each time the modal opens. useState therefore always initialises from
+// the `initial` prop correctly — no useEffect reset pattern needed.
 export default function EntryForm({ initial, onSave, onCancel }) {
-  const entryKey = initial
-    ? (initial.id || ('new-' + initial.person + '-' + initial.start_date))
-    : 'new';
-  const prevKeyRef = useRef(null);
+  const merged = { ...BLANK, ...initial };
 
-  const [form, setForm] = useState({ ...BLANK, ...initial });
-  const [showLatLng, setShowLatLng] = useState(false);
+  const [form,         setForm]         = useState(merged);
+  const [showLatLng,   setShowLatLng]   = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [locQuery, setLocQuery] = useState(initial?.location || '');
+  // For Travel entries the stored location is 'Travel' — show empty
+  // string in the input so the user isn't confused.
+  const [locQuery,     setLocQuery]     = useState(
+    merged.type === 'Travel' ? '' : (merged.location || '')
+  );
   const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    if (entryKey !== prevKeyRef.current) {
-      prevKeyRef.current = entryKey;
-      const merged = { ...BLANK, ...initial };
-      setForm(merged);
-      setLocQuery(merged.type === 'Travel' ? '' : (merged.location || ''));
-      setShowLatLng(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryKey]);
 
   const isTravel = form.type === 'Travel';
   const suggestions = useLocationSuggest(isTravel ? '' : locQuery);
@@ -104,8 +97,11 @@ export default function EntryForm({ initial, onSave, onCancel }) {
     if (typeId === 'Travel') {
       set('location', 'Travel'); set('lat', ''); set('lng', '');
       setLocQuery('');
-    } else if (form.type === 'Travel') {
-      set('location', ''); setLocQuery('');
+    } else {
+      // Switching away from Travel: clear the auto-set location
+      if (form.type === 'Travel') {
+        set('location', ''); setLocQuery('');
+      }
     }
   }
 
@@ -229,7 +225,7 @@ export default function EntryForm({ initial, onSave, onCancel }) {
           placeholder="e.g. Staying at Grandma's, work conference…" rows={2} />
       </label>
 
-      <div className="form-actions">
+      <div class="form-actions">
         <button type="button" className="btn-cancel" onClick={onCancel}>Cancel</button>
         <button type="submit" className="btn-primary">
           {initial && initial.id ? 'Save Changes' : 'Add Entry'}
